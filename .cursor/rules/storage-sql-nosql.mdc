@@ -1,0 +1,12 @@
+---
+description: SQL + NoSQL usage guidelines
+globs: crates/storage/**/*.{rs,toml}
+alwaysApply: false
+---
+
+# Storage guidelines
+
+- **SQL (Postgres)**: use `sqlx` with explicit transactions for multi-step writes; keep queries indexed and bounded.
+- **NoSQL/cache (Redis)**: treat Redis as a cache/queue; design keys with namespaces and TTLs.
+- **Document store (MongoDB, optional)**: use only when schema flexibility is required; keep payloads small and indexed.
+- All storage layers must be **observable** (latency metrics + error tags) and **backpressure-aware**.

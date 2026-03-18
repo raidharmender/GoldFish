@@ -1,0 +1,13 @@
+---
+description: Rust/Tokio + actix-web patterns (latency/throughput)
+globs: **/*.rs
+alwaysApply: false
+---
+
+# Rust service conventions
+
+- **Tokio runtime**: use multi-thread (`rt-multi-thread`) for servers; avoid `tokio::spawn` for non-`Send` futures.
+- **actix-web**: prefer `web::Data` for shared state (pools, clients); avoid global mutables.
+- **Latency**: use connection pools (`sqlx::PgPool`, `deadpool-redis`) and reuse clients; keep allocations minimal in hot paths.
+- **Timeouts**: set `ClientRequest`/DB timeouts and per-request deadlines where appropriate.
+- **OpenAPI**: document handlers with `#[utoipa::path]`; keep schemas in `goldfish-core` when shared across surfaces.

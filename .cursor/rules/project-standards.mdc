@@ -1,0 +1,13 @@
+---
+description: GoldFish repo standards (Rust services)
+alwaysApply: true
+---
+
+# GoldFish standards
+
+- Prefer **clarity + correctness**, then optimize hot paths with measurements.
+- Keep request handlers **thin**; move business logic to `goldfish-core`, storage to `goldfish-storage`.
+- Use `anyhow` only at app boundaries; use typed errors (`thiserror`) inside libraries.
+- Every external call (DB/HTTP/cache) must have **timeouts**, **bounded concurrency**, and **structured tracing**.
+- No blocking on async threads (no sync I/O in handlers); use `spawn_blocking` when unavoidable.
+- Expose **OpenAPI** at `/api/spec` and **Swagger UI** at `/swaggerui/`.
