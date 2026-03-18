@@ -1,9 +1,9 @@
- /target
- **/*.rs.bk
- .DS_Store
- .env
- .env.*
+target/
+**/*.rs.bk
+.DS_Store
+.env
+.env.*
  
- # IDE
- .idea/
- .vscode/
+# IDE
+.idea/
+.vscode/

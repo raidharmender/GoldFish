@@ -16,3 +16,24 @@ impl HealthResponse {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn ok_has_status_ok() {
+    let res = HealthResponse::ok();
+    assert_eq!(res.status, "ok");
+  }
+
+  #[test]
+  fn ok_sets_timestamp_close_to_now() {
+    let before = Utc::now();
+    let res = HealthResponse::ok();
+    let after = Utc::now();
+
+    assert!(res.now_utc >= before);
+    assert!(res.now_utc <= after);
+  }
+}

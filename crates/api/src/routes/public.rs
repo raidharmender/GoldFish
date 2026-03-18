@@ -8,9 +8,10 @@ pub struct PublicApiDoc;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
   cfg.service(
-    web::scope("/api")
-      .service(web::scope("/v1").service(health))
-      .service(web::scope("/v1/webhooks")),
+    // Mount versioned scopes directly so `/api/spec` isn't shadowed by a broad `/api` scope.
+    web::scope("/api/v1")
+      .service(health)
+      .service(web::scope("/webhooks")),
   );
 }
 
