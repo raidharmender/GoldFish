@@ -1,4 +1,8 @@
-use actix_web::{post, web, HttpResponse, Responder};
+use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
+use bytes::Bytes;
+use chrono::Utc;
+use goldfish_storage::jobs;
+use sha2::{Digest, Sha256};
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
   cfg.service(
@@ -10,27 +14,55 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 }
 
 #[post("/transfer")]
-async fn transfer(path: web::Path<(String,)>, body: web::Json<serde_json::Value>) -> impl Responder {
+async fn transfer(req: HttpRequest, path: web::Path<(String,)>, body: Bytes) -> impl Responder {
   let (secret,) = path.into_inner();
-  HttpResponse::Ok().json(serde_json::json!({"vendor":"bitgo","hook":"transfer","secret":secret,"payload":body.into_inner()}))
+  enqueue(&req, "bitgo.transfer", &body).await;
+  match serde_json::from_slice::<serde_json::Value>(&body) {
+    Ok(v) => HttpResponse::Ok().json(serde_json::json!({"vendor":"bitgo","hook":"transfer","secret":secret,"payload":v})),
+    Err(_) => HttpResponse::BadRequest().finish(),
+  }
 }
 
 #[post("/address_confirmation")]
 async fn address_confirmation(
+  req: HttpRequest,
   path: web::Path<(String,)>,
-  body: web::Json<serde_json::Value>,
+  body: Bytes,
 ) -> impl Responder {
   let (secret,) = path.into_inner();
-  HttpResponse::Ok().json(serde_json::json!({"vendor":"bitgo","hook":"address_confirmation","secret":secret,"payload":body.into_inner()}))
+  enqueue(&req, "bitgo.address_confirmation", &body).await;
+  match serde_json::from_slice::<serde_json::Value>(&body) {
+    Ok(v) => HttpResponse::Ok().json(serde_json::json!({"vendor":"bitgo","hook":"address_confirmation","secret":secret,"payload":v})),
+    Err(_) => HttpResponse::BadRequest().finish(),
+  }
 }
 
 #[post("/transfer")]
-async fn transfer_no_secret(body: web::Json<serde_json::Value>) -> impl Responder {
-  HttpResponse::Ok().json(serde_json::json!({"vendor":"bitgo","hook":"transfer","payload":body.into_inner()}))
+async fn transfer_no_secret(req: HttpRequest, body: Bytes) -> impl Responder {
+  enqueue(&req, "bitgo.transfer", &body).await;
+  match serde_json::from_slice::<serde_json::Value>(&body) {
+    Ok(v) => HttpResponse::Ok().json(serde_json::json!({"vendor":"bitgo","hook":"transfer","payload":v})),
+    Err(_) => HttpResponse::BadRequest().finish(),
+  }
 }
 
 #[post("/address_confirmation")]
-async fn address_confirmation_no_secret(body: web::Json<serde_json::Value>) -> impl Responder {
-  HttpResponse::Ok().json(serde_json::json!({"vendor":"bitgo","hook":"address_confirmation","payload":body.into_inner()}))
+async fn address_confirmation_no_secret(req: HttpRequest, body: Bytes) -> impl Responder {
+  enqueue(&req, "bitgo.address_confirmation", &body).await;
+  match serde_json::from_slice::<serde_json::Value>(&body) {
+    Ok(v) => HttpResponse::Ok().json(serde_json::json!({"vendor":"bitgo","hook":"address_confirmation","payload":v})),
+    Err(_) => HttpResponse::BadRequest().finish(),
+  }
+}
+
+async fn enqueue(req: &HttpRequest, kind: &str, body: &[u8]) {
+  let pool = match req.app_data::<web::Data<sqlx::PgPool>>() {
+    Some(p) => p.get_ref().clone(),
+    None => return,
+  };
+  let key = format!("{:x}", Sha256::digest(body));
+  if let Ok(true) = jobs::claim_idempotency(&pool, "bitgo", &format!("{kind}:{key}")).await {
+    let _ = jobs::enqueue(&pool, "webhook.bitgo", serde_json::json!({"kind": kind, "body_sha256": key}), Utc::now()).await;
+  }
 }
 

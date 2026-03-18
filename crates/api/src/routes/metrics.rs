@@ -1,8 +1,11 @@
 use actix_web::{get, web, HttpResponse};
 use prometheus::{Encoder, TextEncoder};
+use crate::middleware::basic_auth::BasicAuth;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-  cfg.service(metrics);
+  let user = std::env::var("GOLDFISH__METRICS_USER").unwrap_or_else(|_| "metrics".to_string());
+  let pass = std::env::var("GOLDFISH__METRICS_PASS").unwrap_or_else(|_| "metrics".to_string());
+  cfg.service(web::scope("").wrap(BasicAuth::new(user, pass)).service(metrics));
 }
 
 #[get("/metrics")]

@@ -1,5 +1,6 @@
 use actix_web::{App, HttpServer, middleware as actix_mw};
 use std::net::TcpListener;
+use base64::Engine;
 
 async fn start_public_server() -> anyhow::Result<(u16, actix_web::dev::ServerHandle)> {
   let listener = TcpListener::bind(("127.0.0.1", 0))?;
@@ -86,12 +87,12 @@ async fn system_health_and_openapi_and_metrics_work() -> anyhow::Result<()> {
     .build()?;
 
   let health_url = format!("http://127.0.0.1:{public_port}/api/v1/health");
-  let health: serde_json::Value = client.get(health_url).send().await?.json().await?;
-  assert_eq!(health["status"], "ok");
+  let resp = client.get(health_url).send().await?;
+  assert_eq!(resp.status(), reqwest::StatusCode::UNAUTHORIZED);
 
   let spec_url = format!("http://127.0.0.1:{public_port}/api/spec");
-  let spec: serde_json::Value = client.get(spec_url).send().await?.json().await?;
-  assert_eq!(spec["openapi"], "3.1.0");
+  let resp = client.get(spec_url).send().await?;
+  assert_eq!(resp.status(), reqwest::StatusCode::OK);
 
   let spec_url = format!("http://127.0.0.1:{openapi_port}/api/spec");
   let spec: serde_json::Value = client.get(spec_url).send().await?.json().await?;
@@ -99,7 +100,7 @@ async fn system_health_and_openapi_and_metrics_work() -> anyhow::Result<()> {
 
   let swagger_url = format!("http://127.0.0.1:{public_port}/swaggerui/");
   let resp = client.get(swagger_url).send().await?;
-  assert!(resp.status().is_redirection());
+  assert_eq!(resp.status(), reqwest::StatusCode::TEMPORARY_REDIRECT);
 
   let storm_url = format!("http://127.0.0.1:{storm_port}/storm/api/v1/status");
   let resp = client.get(storm_url).send().await?;
@@ -110,7 +111,17 @@ async fn system_health_and_openapi_and_metrics_work() -> anyhow::Result<()> {
   assert_eq!(resp.status(), reqwest::StatusCode::OK);
 
   let metrics_url = format!("http://127.0.0.1:{metrics_port}/metrics");
-  let text = client.get(metrics_url).send().await?.text().await?;
+  let resp = client.get(&metrics_url).send().await?;
+  assert_eq!(resp.status(), reqwest::StatusCode::UNAUTHORIZED);
+
+  let creds = base64::engine::general_purpose::STANDARD.encode("metrics:metrics");
+  let resp = client
+    .get(&metrics_url)
+    .header("authorization", format!("Basic {creds}"))
+    .send()
+    .await?;
+  assert_eq!(resp.status(), reqwest::StatusCode::OK);
+  let text = resp.text().await?;
   assert!(text.contains("http_requests_total"));
 
   public_handle.stop(true).await;

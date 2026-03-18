@@ -17,6 +17,17 @@ pub async fn start() -> anyhow::Result<JobScheduler> {
     )
     .await?;
 
+  // Placeholder for "recurring trading scheduler" (mirrors Trading.Recurring.Scheduler intent).
+  sched
+    .add(
+      Job::new_async("0 */5 * * * *", |_uuid, _l| {
+        Box::pin(async move {
+          info!("recurring trading tick (placeholder)");
+        })
+      })?,
+    )
+    .await?;
+
   sched.start().await?;
   Ok(sched)
 }

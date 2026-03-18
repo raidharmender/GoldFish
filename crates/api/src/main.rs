@@ -10,6 +10,7 @@ async fn main() -> anyhow::Result<()> {
   let sql = goldfish_storage::sql::SqlStore::connect(&settings.sql.database_url).await?;
   goldfish_storage::jobs::migrate(&sql.pool).await?;
   goldfish_api::jobs::worker::start(sql.pool.clone());
+  let pool = actix_web::web::Data::new(sql.pool.clone());
 
   let public_addr = (settings.public.host.as_str(), settings.public.port);
   let metrics_addr = (settings.metrics.host.as_str(), settings.metrics.port);
@@ -33,9 +34,10 @@ async fn main() -> anyhow::Result<()> {
   let taxbit_addr = (settings.vendors.taxbit.host.as_str(), settings.vendors.taxbit.port);
 
   info!(?public_addr, "starting public api");
+  let public_pool = pool.clone();
   let public = HttpServer::new(move || {
     App::new()
-      .app_data(actix_web::web::Data::new(sql.pool.clone()))
+      .app_data(public_pool.clone())
       .wrap(actix_mw::Compress::default())
       .wrap(actix_mw::NormalizePath::trim())
       .wrap(middleware::metrics::Metrics)
@@ -90,8 +92,10 @@ async fn main() -> anyhow::Result<()> {
   .run();
 
   info!(?docusign_addr, "starting docusign callbacks endpoint");
+  let docusign_pool = pool.clone();
   let docusign = HttpServer::new(move || {
     App::new()
+      .app_data(docusign_pool.clone())
       .wrap(actix_mw::NormalizePath::trim())
       .configure(routes::vendors::docusign::configure)
   })
@@ -101,8 +105,10 @@ async fn main() -> anyhow::Result<()> {
   .run();
 
   info!(?bitgo_addr, "starting bitgo callbacks endpoint");
+  let bitgo_pool = pool.clone();
   let bitgo = HttpServer::new(move || {
     App::new()
+      .app_data(bitgo_pool.clone())
       .wrap(actix_mw::NormalizePath::trim())
       .configure(routes::vendors::bitgo::configure)
   })
@@ -112,8 +118,10 @@ async fn main() -> anyhow::Result<()> {
   .run();
 
   info!(?cognito_addr, "starting cognito endpoint");
+  let cognito_pool = pool.clone();
   let cognito = HttpServer::new(move || {
     App::new()
+      .app_data(cognito_pool.clone())
       .wrap(actix_mw::NormalizePath::trim())
       .configure(routes::vendors::cognito::configure)
   })
@@ -123,8 +131,10 @@ async fn main() -> anyhow::Result<()> {
   .run();
 
   info!(?plaid_addr, "starting plaid callbacks endpoint");
+  let plaid_pool = pool.clone();
   let plaid = HttpServer::new(move || {
     App::new()
+      .app_data(plaid_pool.clone())
       .wrap(actix_mw::NormalizePath::trim())
       .configure(routes::vendors::plaid::configure)
   })
@@ -134,8 +144,10 @@ async fn main() -> anyhow::Result<()> {
   .run();
 
   info!(?mt_addr, "starting modern treasury callbacks endpoint");
+  let mt_pool = pool.clone();
   let modern_treasury = HttpServer::new(move || {
     App::new()
+      .app_data(mt_pool.clone())
       .wrap(actix_mw::NormalizePath::trim())
       .configure(routes::vendors::modern_treasury::configure)
   })
@@ -145,8 +157,10 @@ async fn main() -> anyhow::Result<()> {
   .run();
 
   info!(?taxbit_addr, "starting taxbit callbacks endpoint");
+  let taxbit_pool = pool.clone();
   let taxbit = HttpServer::new(move || {
     App::new()
+      .app_data(taxbit_pool.clone())
       .wrap(actix_mw::NormalizePath::trim())
       .configure(routes::vendors::taxbit::configure)
   })

@@ -16,6 +16,10 @@ pub fn start(pool: PgPool) {
               Ok(())
             }
             "webhook.bitgo" => Ok(()),
+            "webhook.docusign" => Ok(()),
+            "webhook.modern_treasury" => Ok(()),
+            "webhook.taxbit" => Ok(()),
+            "webhook.cognito" => Ok(()),
             _ => Ok(()),
           };
 

@@ -46,6 +46,14 @@ mod given_when_then {
       .context("decode json")
   }
 
+  pub async fn when_get_expect_unauthorized(client: &Client, url: &str) -> anyhow::Result<()> {
+    let resp = client.get(url).send().await.context("send request")?;
+    if resp.status() != reqwest::StatusCode::UNAUTHORIZED {
+      anyhow::bail!("expected 401, got {}", resp.status());
+    }
+    Ok(())
+  }
+
   pub fn then_health_status_is_ok(v: &Value) {
     assert_eq!(v["status"], "ok");
     assert!(v.get("now_utc").is_some());
@@ -61,8 +69,8 @@ async fn behaviour_public_api_health_and_openapi() -> anyhow::Result<()> {
   let server = given_when_then::given_public_server_running().await?;
   let client = Client::new();
 
-  let health = given_when_then::when_get_json(&client, &format!("{}/api/v1/health", server.base_url)).await?;
-  given_when_then::then_health_status_is_ok(&health);
+  // Public API is JWT-protected; without a valid token we should get 401.
+  given_when_then::when_get_expect_unauthorized(&client, &format!("{}/api/v1/health", server.base_url)).await?;
 
   let spec = given_when_then::when_get_json(&client, &format!("{}/api/spec", server.base_url)).await?;
   given_when_then::then_openapi_is_3_1(&spec);
