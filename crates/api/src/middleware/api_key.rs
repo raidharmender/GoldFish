@@ -1,5 +1,10 @@
-use actix_web::{dev::{Service, ServiceRequest, ServiceResponse, Transform}, Error, HttpResponse};
-use futures_util::future::{ready, LocalBoxFuture, Ready};
+use actix_web::{
+  body::EitherBody,
+  dev::{Service, ServiceRequest, ServiceResponse, Transform},
+  Error, HttpResponse,
+};
+use std::future::{ready, Ready};
+use std::pin::Pin;
 
 #[derive(Clone)]
 pub struct ApiKeyAuth {
@@ -21,7 +26,7 @@ where
   S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
   B: 'static,
 {
-  type Response = ServiceResponse<B>;
+  type Response = ServiceResponse<EitherBody<B>>;
   type Error = Error;
   type InitError = ();
   type Transform = ApiKeyAuthMiddleware<S>;
@@ -47,9 +52,9 @@ where
   S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
   B: 'static,
 {
-  type Response = ServiceResponse<B>;
+  type Response = ServiceResponse<EitherBody<B>>;
   type Error = Error;
-  type Future = LocalBoxFuture<'static, Result<Self::Response, Self::Error>>;
+  type Future = Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>>>>;
 
   fn poll_ready(
     &self,
@@ -61,6 +66,7 @@ where
   fn call(&self, req: ServiceRequest) -> Self::Future {
     let expected = self.expected.clone();
     let header_name = self.header_name;
+    let req = req;
     let mut authorized = false;
 
     if let Some(v) = req.headers().get(header_name) {
@@ -69,15 +75,15 @@ where
       }
     }
 
+    if !authorized {
+      let res = req.into_response(HttpResponse::Unauthorized().finish().map_into_right_body());
+      return Box::pin(async move { Ok(res) });
+    }
+
     let fut = self.service.call(req);
     Box::pin(async move {
-      if !authorized {
-        return Ok(ServiceResponse::new(
-          fut.into_parts().0,
-          HttpResponse::Unauthorized().finish().map_into_right_body(),
-        ));
-      }
-      fut.await
+      let res = fut.await?.map_into_left_body();
+      Ok(res)
     })
   }
 }
