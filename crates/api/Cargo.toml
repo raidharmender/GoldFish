@@ -17,6 +17,7 @@
  utoipa.workspace = true
  utoipa-swagger-ui.workspace = true
 prometheus.workspace = true
+tokio-cron-scheduler.workspace = true
  
  goldfish-core = { path = "../core" }
  goldfish-storage = { path = "../storage" }

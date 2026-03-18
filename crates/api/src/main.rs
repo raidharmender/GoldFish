@@ -6,6 +6,7 @@ use tracing::info;
 async fn main() -> anyhow::Result<()> {
   settings::init_tracing();
   let settings = Settings::load()?;
+  let _scheduler = goldfish_api::jobs::scheduler::start().await?;
 
   let public_addr = (settings.public.host.as_str(), settings.public.port);
   let metrics_addr = (settings.metrics.host.as_str(), settings.metrics.port);
