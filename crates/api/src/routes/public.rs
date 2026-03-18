@@ -3,6 +3,7 @@ use goldfish_core::health::HealthResponse;
 use utoipa::OpenApi;
 use crate::auth::jwt::JwtAuth;
 use crate::auth::actor::ActorType;
+use crate::routes::customers;
 
 #[derive(OpenApi)]
 #[openapi(paths(health), components(schemas(HealthResponse)), tags((name = "public")))]
@@ -31,6 +32,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
       // In the reference app, most /api/v1 routes use customer_api pipeline. We model it here.
       .wrap(jwt)
       .service(health)
+      .configure(customers::configure)
       .service(web::scope("/webhooks")),
   );
 }

@@ -9,6 +9,7 @@ async fn main() -> anyhow::Result<()> {
   let _scheduler = goldfish_api::jobs::scheduler::start().await?;
   let sql = goldfish_storage::sql::SqlStore::connect(&settings.sql.database_url).await?;
   goldfish_storage::jobs::migrate(&sql.pool).await?;
+  goldfish_storage::customers::migrate(&sql.pool).await?;
   goldfish_api::jobs::worker::start(sql.pool.clone());
   let pool = actix_web::web::Data::new(sql.pool.clone());
 
