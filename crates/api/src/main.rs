@@ -7,6 +7,9 @@ async fn main() -> anyhow::Result<()> {
   settings::init_tracing();
   let settings = Settings::load()?;
   let _scheduler = goldfish_api::jobs::scheduler::start().await?;
+  let sql = goldfish_storage::sql::SqlStore::connect(&settings.sql.database_url).await?;
+  goldfish_storage::jobs::migrate(&sql.pool).await?;
+  goldfish_api::jobs::worker::start(sql.pool.clone());
 
   let public_addr = (settings.public.host.as_str(), settings.public.port);
   let metrics_addr = (settings.metrics.host.as_str(), settings.metrics.port);
@@ -32,6 +35,7 @@ async fn main() -> anyhow::Result<()> {
   info!(?public_addr, "starting public api");
   let public = HttpServer::new(move || {
     App::new()
+      .app_data(actix_web::web::Data::new(sql.pool.clone()))
       .wrap(actix_mw::Compress::default())
       .wrap(actix_mw::NormalizePath::trim())
       .wrap(middleware::metrics::Metrics)

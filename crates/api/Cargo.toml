@@ -18,6 +18,14 @@
  utoipa-swagger-ui.workspace = true
 prometheus.workspace = true
 tokio-cron-scheduler.workspace = true
+reqwest.workspace = true
+jsonwebtoken.workspace = true
+futures-util.workspace = true
+sha2.workspace = true
+bytes.workspace = true
+sqlx.workspace = true
+uuid.workspace = true
+chrono.workspace = true
  
  goldfish-core = { path = "../core" }
  goldfish-storage = { path = "../storage" }

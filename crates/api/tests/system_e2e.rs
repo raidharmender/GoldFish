@@ -120,3 +120,5 @@ async fn system_health_and_openapi_and_metrics_work() -> anyhow::Result<()> {
   Ok(())
 }
 
+// Job queue/idempotency are exercised in `goldfish-storage` tests (requires Postgres).
+
